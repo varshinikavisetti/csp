@@ -1,116 +1,75 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Healthcare Chatbot</title>
-  <style>
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: #f0f6fb;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      margin: 0;
-    }
-    .chat-container {
-      width: 480px;
-      height: 650px;
-      background: #fff;
-      border-radius: 15px;
-      box-shadow: 0 8px 25px rgba(0,0,0,0.15);
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
-    .chat-header {
-      background: #0077cc;
-      color: white;
-      text-align: center;
-      padding: 18px;
-      font-size: 20px;
-      font-weight: bold;
-    }
-    .chat-box {
-      flex: 1;
-      padding: 15px;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      background: #f7fafd;
-    }
-    .message {
-      max-width: 75%;
-      margin: 8px 0;
-      padding: 12px 16px;
-      border-radius: 15px;
-      font-size: 15px;
-      line-height: 1.4;
-      word-wrap: break-word;
-    }
-    .user-msg {
-      background: #0077cc;
-      color: white;
-      align-self: flex-end;
-      border-bottom-right-radius: 0;
-    }
-    .bot-msg {
-      background: #e5e5ea;
-      color: black;
-      align-self: flex-start;
-      border-bottom-left-radius: 0;
-    }
-    .chat-input {
-      display: flex;
-      border-top: 1px solid #ddd;
-      background: white;
-    }
-    .chat-input input {
-      flex: 1;
-      border: none;
-      padding: 15px;
-      font-size: 15px;
-      outline: none;
-    }
-    .chat-input button {
-      background: #0077cc;
-      color: white;
-      border: none;
-      padding: 15px 20px;
-      cursor: pointer;
-      font-size: 15px;
-    }
-    .chat-input button:hover {
-      background: #005fa3;
-    }
-  </style>
+
+  <!-- Bootstrap -->
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"/>
+
+  <!-- Leaflet (map) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css"/>
+
+  <!-- Optional icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+
+  <!-- Your custom styles -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+
 </head>
 <body>
-  <div class="chat-container">
-    <div class="chat-header">🩺 Healthcare Chatbot</div>
-    <div class="chat-box" id="chat-box">
-      {% if chat_history %}
-        {% for sender, msg in chat_history %}
-          {% if sender == "user" %}
-            <div class="user-msg message">{{ msg }}</div>
-          {% else %}
-            <div class="bot-msg message">{{ msg|safe }}</div>
-          {% endif %}
-        {% endfor %}
-      {% else %}
-        <div class="bot-msg message">👋 Hello! I can help you with diseases, symptoms, medicines, and precautions.<br>Try asking: <i>"What are the symptoms of diabetes?"</i></div>
-      {% endif %}
+  <div class="container-fluid mt-3">
+    <div class="row">
+      <!-- Chat column -->
+      <div class="col-lg-4 mb-3">
+        <div class="d-flex align-items-center mb-2">
+          <div>
+            <h4 class="mb-0">Healthcare Chatbot</h4>
+            <small class="text-muted">Describe symptoms (e.g., "fever, cough, sore throat")</small>
+          </div>
+          <div class="ml-auto">
+            <button id="clear-chat" class="btn btn-sm btn-outline-secondary" title="Clear chat"><i class="fa fa-trash"></i></button>
+          </div>
+        </div>
+
+        <div id="chat-container" class="chat-box mb-2"></div>
+
+        <div id="suggested" class="mb-2">
+          <small class="text-muted">Quick symptoms:</small>
+          <div class="mt-1">
+            <button class="btn btn-sm btn-light quick-symptom">fever</button>
+            <button class="btn btn-sm btn-light quick-symptom">cough</button>
+            <button class="btn btn-sm btn-light quick-symptom">headache</button>
+            <button class="btn btn-sm btn-light quick-symptom">shortness of breath</button>
+            <button class="btn btn-sm btn-light quick-symptom">rash</button>
+          </div>
+        </div>
+
+        <div id="chat-input" class="d-flex gap-2">
+          <input type="text" id="user-input" class="form-control" placeholder="Enter symptoms or disease"/>
+          <button id="send-btn" class="btn btn-primary">Send</button>
+        </div>
+
+        <div class="mt-2 d-flex gap-2">
+          <button id="find-hospitals-btn" class="btn btn-success btn-block"><i class="fa fa-hospital"></i> Nearby Hospitals</button>
+        </div>
+      </div>
+
+      <!-- Map column (unchanged functionality) -->
+      <div class="col-lg-8">
+        <div id="map" style="height: 80vh; width: 100%; border-radius: 8px;"></div>
+      </div>
     </div>
-    <form method="post" class="chat-input">
-      <input type="text" name="query" placeholder="Type your question..." required>
-      <button type="submit">Send</button>
-    </form>
   </div>
 
-  <script>
-    // Auto-scroll to bottom on new message
-    var chatBox = document.getElementById("chat-box");
-    chatBox.scrollTop = chatBox.scrollHeight;
-  </script>
+  <!-- JS dependencies -->
+  <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
+
+  <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
 </html>

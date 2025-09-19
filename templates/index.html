@@ -52,6 +52,21 @@
           <button id="send-btn" class="btn btn-primary">Send</button>
         </div>
 
+        <div class="mt-2">
+        <label for="radius-select"><small class="text-muted">Search radius:</small></label>
+        <select id="radius-select" class="form-control form-control-sm">
+          <option value="">Auto (start 5 km)</option>
+          <option value="5000">5 km</option>
+          <option value="10000">10 km</option>
+          <option value="20000">20 km</option>
+          <option value="50000">50 km</option>
+        </select>
+
+        <!-- Add this line below the select -->
+        <div id="search-status" class="small text-muted mt-1"></div>
+      </div>
+
+
         <div class="mt-2 d-flex gap-2">
           <button id="find-hospitals-btn" class="btn btn-success btn-block"><i class="fa fa-hospital"></i> Nearby Hospitals</button>
         </div>

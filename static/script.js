@@ -43,30 +43,80 @@ function redMarker() {
 }
 
 function findHospitals() {
-  if (!userLocation) { alert("Location not available."); return; }
-  const [lat, lng] = userLocation;
-  const overpassUrl = `https://overpass-api.de/api/interpreter?data=[out:json];node(around:5000,${lat},${lng})[amenity=hospital];out;`;
+  if (!userLocation) { 
+    alert("Location not available."); 
+    return; 
+  }
 
-  fetch(overpassUrl)
-    .then(res => res.json())
-    .then(data => {
-      if (data.elements.length === 0) { alert("No hospitals nearby."); return; }
-      data.elements.forEach(el => {
-        if (el.lat && el.lon) {
-          const marker = L.marker([el.lat, el.lon], { icon: redMarker() }).addTo(map);
-          marker.bindPopup(el.tags.name || "Hospital").on("click", () => {
-            if (routingControl) map.removeControl(routingControl);
-            routingControl = L.Routing.control({
-              waypoints: [ L.latLng(lat, lng), L.latLng(el.lat, el.lon) ],
-              lineOptions: { styles: [{ color: '#007bff', weight: 5 }] },
-              createMarker: () => null,
-              routeWhileDragging: false
-            }).addTo(map);
+  const [lat, lng] = userLocation;
+  const userRadius = parseInt(document.getElementById("radius-select").value);
+  // If user picked a radius, use only that; otherwise try 5,10,20,50 km
+  const distances = userRadius ? [userRadius] : [5000, 10000, 20000, 50000];
+  let index = 0;
+
+  // Remove previous hospital markers and routing
+  map.eachLayer(layer => {
+    if (layer.options && layer.options.icon === redMarker().options.iconUrl) {
+      map.removeLayer(layer);
+    }
+  });
+  if (routingControl) {
+    map.removeControl(routingControl);
+    routingControl = null;
+  }
+
+  function trySearch() {
+    if (index >= distances.length) {
+      $("#search-status").text("");
+      alert("No hospitals found within 50 km.");
+      return;
+    }
+
+    const radius = distances[index];
+    $("#search-status").text(`Searching within ${radius/1000} km...`);
+
+    const overpassUrl = `https://overpass-api.de/api/interpreter?data=[out:json];node(around:${radius},${lat},${lng})[amenity=hospital];out;`;
+
+    fetch(overpassUrl)
+      .then(res => res.json())
+      .then(data => {
+        if (data.elements.length === 0 && !userRadius) {
+          // Retry with next distance
+          index++;
+          trySearch();
+        } else if (data.elements.length === 0) {
+          $("#search-status").text("");
+          alert("No hospitals found.");
+        } else {
+          // Add hospital markers
+          data.elements.forEach(el => {
+            if (el.lat && el.lon) {
+              const marker = L.marker([el.lat, el.lon], { icon: redMarker() }).addTo(map);
+              marker.bindPopup(el.tags.name || "Hospital").on("click", () => {
+                if (routingControl) map.removeControl(routingControl);
+                routingControl = L.Routing.control({
+                  waypoints: [ L.latLng(lat, lng), L.latLng(el.lat, el.lon) ],
+                  lineOptions: { styles: [{ color: '#007bff', weight: 5 }] },
+                  createMarker: () => null,
+                  routeWhileDragging: false
+                }).addTo(map);
+              });
+            }
           });
+          $("#search-status").text(""); // clear status after results
         }
+      })
+      .catch(err => {
+        console.error(err);
+        $("#search-status").text("");
+        alert("Error fetching hospitals. Try again.");
       });
-    });
+  }
+
+  trySearch();
 }
+
+
 
 // ---------- Chat UX ----------
 function userBubble(text) {
